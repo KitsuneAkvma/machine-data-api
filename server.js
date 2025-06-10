@@ -398,11 +398,13 @@ app.use((err, req, res, next) => {
   });
 });
 
-// 404 handler
-app.use('*', (req, res) => {
+// 404 handler - fixed route pattern
+app.use((req, res) => {
   res.status(404).json({
     success: false,
     error: 'Endpoint not found',
+    path: req.path,
+    method: req.method,
     availableEndpoints: [
       'GET /health',
       'POST /api/machine-data',
