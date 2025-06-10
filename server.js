@@ -129,24 +129,178 @@ const validateMachineData = (req, res, next) => {
 
 // Health check endpoint
 app.get('/health', (req, res) => {
-  // Quick DB health check
-  db.get("SELECT 1", (err) => {
-    const dbStatus = err ? 'error' : 'connected';
-    
-    res.json({
-      status: dbStatus === 'connected' ? 'operational' : 'degraded',
-      database: dbStatus,
+    // Quick DB health check
+    db.get("SELECT 1", (err) => {
+      const dbStatus = err ? 'error' : 'connected';
+      
+      // Accept query parameter to show different content
+      const showGuide = req.query.guide === 'true';
+      
+      if (showGuide) {
+        // Serve the API guide as HTML
+        res.send(`
+  <!DOCTYPE html>
+  <html lang="pl">
+  <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>API Guide - Machine Data</title>
+      <style>
+          body { font-family: system-ui, -apple-system, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; line-height: 1.6; }
+          h1 { color: #2563eb; }
+          h2 { color: #1e40af; border-bottom: 2px solid #e5e7eb; padding-bottom: 8px; }
+          h3 { color: #1e3a8a; }d1e9c9
+          code { color:#d1fae5; padding: 2px 4px; border-radius: 3px; font-size: 0.9em; }
+          pre { background: #1f2937; color: #f9fafb; padding: 16px; border-radius: 8px; overflow-x: auto; }
+          .warning { background: #fef3c7; border-left: 4px solid #f59e0b; padding: 12px; margin: 16px 0; }
+          .success { background: #d1fae5; border-left: 4px solid #10b981; padding: 12px; margin: 16px 0; }
+          .error { background: #fee2e2; border-left: 4px solid #ef4444; padding: 12px; margin: 16px 0; }
+          .step { background: #eff6ff; padding: 12px; margin: 8px 0; border-radius: 6px; }
+          button { background: #2563eb; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; }
+          button:hover { background: #1d4ed8; }
+      </style>
+  </head>
+  <body>
+      <h1>🚀 API Guide - Jak wysłać dane maszyny przez przeglądarkę</h1>
+      
+      <h2>🔧 Metoda 1: Testowanie przez konsolę przeglądarki (NAJŁATWIEJSZE)</h2>
+      
+      <div class="step">
+          <h3>Krok 1: Otwórz konsolę</h3>
+          <p>1. Naciśnij <strong>F12</strong> (lub kliknij prawym przyciskiem → "Zbadaj element")<br>
+          2. Kliknij zakładkę <strong>"Console"</strong> (Konsola)</p>
+      </div>
+      
+      <div class="step">
+          <h3>Krok 2: Skopiuj i wklej kod</h3>
+          <p>Wklej poniższy kod w konsoli i naciśnij <strong>Enter</strong>:</p>
+          
+          <pre><code>// Wyślij dane testowe maszyny
+  fetch('${req.protocol}://${req.get('host')}/api/machine-data', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      machineId: "MASZYNA-001",
+      deviceType: "sensor",
       timestamp: new Date().toISOString(),
-      uptime: process.uptime(),
-      memory: process.memoryUsage(),
-      metrics: {
-        totalMessages: systemMetrics.totalMessages,
-        connectedDevices: systemMetrics.connectedDevices.size,
-        lastActivity: systemMetrics.lastMessage
+      data: {
+        temperature: 23.5,
+        humidity: 45,
+        pressure: 1013,
+        status: "working"
+      },
+      metadata: {
+        location: "Hala A",
+        operator: "Jan Kowalski"
+      }
+    })
+  })
+  .then(response => response.json())
+  .then(data => {
+    console.log('✅ SUKCES! Dane wysłane:', data);
+    alert('Dane wysłane pomyślnie! Sprawdź dashboard.');
+  })
+  .catch(error => {
+    console.error('❌ BŁĄD:', error);
+    alert('Błąd wysyłania: ' + error.message);
+  });</code></pre>
+          
+          <button onclick="navigator.clipboard.writeText(document.querySelector('pre code').textContent)">
+              📋 Skopiuj kod
+          </button>
+      </div>
+      
+      <h2>📊 Sprawdź swoje dane</h2>
+      <ul>
+          <li><a href="${req.protocol}://${req.get('host')}/health" target="_blank">Dashboard</a> - główny panel</li>
+          <li><a href="${req.protocol}://${req.get('host')}/api/machine-data" target="_blank">Wszystkie dane</a></li>
+          <li><a href="${req.protocol}://${req.get('host')}/api/stats" target="_blank">Statystyki</a></li>
+      </ul>
+      
+      <h2>🎯 Przykłady danych różnych typów maszyn</h2>
+      
+      <h3>Bosch Rexroth:</h3>
+      <pre><code>{
+    "machineId": "BOSCH-REXROTH-01",
+    "deviceType": "torque_sdrive", 
+    "timestamp": "2025-06-10T12:00:00.000Z",
+    "data": {
+      "temperature": 32.3,
+      "torque": 55.2,
+      "vibrations": 0.02
+    }
+  }</code></pre>
+      
+      <div class="warning">
+          <h3>⚠️ Ważne limity:</h3>
+          <ul>
+              <li><strong>1 wiadomość na 10 sekund</strong> na maszynę</li>
+              <li><strong>100 wiadomości na minutę</strong> globalnie</li>
+              <li>Dane starsze niż 30 dni mogą być automatycznie usuwane</li>
+          </ul>
+      </div>
+      
+      <h2>🆘 Rozwiązywanie problemów</h2>
+      
+      <div class="error">
+          <strong>Błąd 400 - "Missing required fields":</strong><br>
+          Sprawdź czy masz wszystkie wymagane pola: <code>machineId</code>, <code>timestamp</code>, <code>data</code>
+      </div>
+      
+      <div class="error">
+          <strong>Błąd 429 - "Rate limit exceeded":</strong><br>
+          Czekaj 10 sekund między wysyłaniem danych z tej samej maszyny
+      </div>
+      
+      
+      <hr>
+      <p><small>Potrzebujesz pomocy? Użyj konsoli przeglądarki - to najprostszy sposób!</small></p>
+      
+      <script>
+          // Auto-copy function for code blocks
+          document.querySelectorAll('pre').forEach(pre => {
+              pre.style.position = 'relative';
+              pre.addEventListener('click', () => {
+                  navigator.clipboard.writeText(pre.textContent);
+                  
+                  // Show feedback
+                  const feedback = document.createElement('div');
+                  feedback.textContent = '📋 Skopiowane!';
+                  feedback.style.cssText = 'position: absolute; top: 10px; right: 10px; background: #10b981; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px;';
+                  pre.appendChild(feedback);
+                  
+                  setTimeout(() => feedback.remove(), 2000);
+              });
+          });
+      </script>
+  </body>
+  </html>
+        `);
+      } else {
+        // Standard health check response
+        res.json({
+          status: dbStatus === 'connected' ? 'operational' : 'degraded',
+          database: dbStatus,
+          timestamp: new Date().toISOString(),
+          uptime: process.uptime(),
+          memory: process.memoryUsage(),
+          metrics: {
+            totalMessages: systemMetrics.totalMessages,
+            connectedDevices: systemMetrics.connectedDevices.size,
+            lastActivity: systemMetrics.lastMessage
+          },
+          // Add guide access info
+          guide: {
+            available: true,
+            url: `${req.protocol}://${req.get('host')}/health?guide=true`,
+            description: "Complete API usage guide with examples"
+          }
+        });
       }
     });
   });
-});
 
 // POST endpoint - data ingestion with per-machine rate limiting
 app.post('/api/machine-data', machineRateLimiter, validateMachineData, (req, res) => {
